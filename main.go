@@ -1,8 +1,20 @@
 package main
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+	"net/http"
+)
+
+type requestResult struct {
+	url    string
+	status string
+}
 
 func main() {
+	var results = make(map[string]string)
+	c := make(chan requestResult)
+
 	urls := []string{
 		"https://www.airbnb.com/",
 		"https://www.google.com/",
@@ -14,7 +26,27 @@ func main() {
 		"https://academy.nomadcoders.co/",
 	}
 
-	for url := range urls {
-		fmt.Println(url)
+	for _, url := range urls {
+		go hitURL(url, c)
 	}
+
+	for i := 0; i < len(urls); i++ {
+		result := <-c
+		results[result.url] = result.status
+	}
+
+	for url, status := range results {
+		fmt.Println(url, status)
+	}
+}
+
+var errRequestFailed = errors.New("Request is failed")
+
+func hitURL(url string, c chan<- requestResult) {
+	resp, err := http.Get(url)
+	status := "OK"
+	if err != nil || resp.StatusCode >= 400 {
+		status = "Falied"
+	}
+	c <- requestResult{url: url, status: status}
 }
